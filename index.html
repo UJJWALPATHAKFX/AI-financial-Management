@@ -746,10 +746,10 @@
       </div>
       <div class="chat-wrap">
         <div class="api-bar">
-          <span class="api-label">GEMINI API KEY</span>
+          <span class="api-label">GROQ API KEY</span>
           <input class="api-input" id="api-key-input" type="password" placeholder="AIzaSy...">
           <button class="api-save" onclick="saveKey()">CONNECT</button>
-          <div class="api-hint">⟶ Get free key: aistudio.google.com → Get API Key → copy & paste above</div>
+          <div class="api-hint">⟶ Get free key: console.groq.com → API Keys → Create API Key → paste above</div>
         </div>
         <div class="chat-messages" id="chat-messages">
           <div class="msg ai">
@@ -1001,30 +1001,34 @@ async function sendChat() {
 
   const systemPrompt = `You are FINCOACH AI, a sharp and friendly personal finance coach for Indian college students. Be concise (2-3 paragraphs max), use ₹ for currency, give specific actionable advice. Always reference the user's actual data when relevant. ${getContext()}`;
 
-  chatHistory.push({ role:'user', parts:[{text}] });
+  chatHistory.push({ role:'user', content: text });
   const loadId = appendMsg('<span class="thinking-dots">Analyzing</span>', 'ai', true);
 
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
-      {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({
-          system_instruction: { parts: [{text: systemPrompt}] },
-          contents: chatHistory
-        })
-      }
-    );
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${geminiKey}`
+      },
+      body: JSON.stringify({
+        model: 'llama3-8b-8192',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...chatHistory
+        ],
+        max_tokens: 1000
+      })
+    });
     const data = await res.json();
     if (data.error) {
       updateMsg(loadId, 'ERROR: ' + data.error.message, false);
       chatHistory.pop();
       return;
     }
-    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response.';
+    const reply = data.choices?.[0]?.message?.content || 'No response.';
     updateMsg(loadId, reply, false);
-    chatHistory.push({ role:'model', parts:[{text:reply}] });
+    chatHistory.push({ role:'assistant', content: reply });
   } catch(e) {
     updateMsg(loadId, 'Network error. Check API key and internet connection.', false);
     chatHistory.pop();
