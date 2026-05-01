@@ -637,8 +637,11 @@
     <div class="nav-item" onclick="switchTab('chat',this)">
       <span class="nav-icon">◈</span> AI Coach
     </div>
+    <div class="nav-item" onclick="switchTab('setup',this)">
+      <span class="nav-icon">◎</span> My Profile
+    </div>
     <div class="nav-item" onclick="switchTab('budget',this)">
-      <span class="nav-icon">◎</span> Budget Config
+      <span class="nav-icon">⚙</span> Budget Config
     </div>
     <div class="nav-section" style="margin-top:auto">SYSTEM</div>
     <div style="padding:12px;font-family:var(--font-mono);font-size:9px;color:var(--text-dim);line-height:1.8">
@@ -771,6 +774,90 @@
       </div>
     </div>
 
+    <!-- ── SETUP / PROFILE ── -->
+    <div class="panel" id="panel-setup">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">// FINANCIAL PROFILE</div>
+          <div class="panel-subtitle">Tell me about yourself</div>
+        </div>
+      </div>
+      <div style="max-width:600px">
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title">INCOME</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Monthly Income / Allowance (₹)</label>
+              <input class="form-input" id="p-income" type="number" placeholder="e.g. 20000">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Other Income (freelance, part-time) (₹)</label>
+              <input class="form-input" id="p-other-income" type="number" placeholder="e.g. 5000">
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title">FIXED MONTHLY EXPENSES</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Rent / PG (₹)</label>
+              <input class="form-input" id="p-rent" type="number" placeholder="e.g. 4000">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Food / Mess (₹)</label>
+              <input class="form-input" id="p-food" type="number" placeholder="e.g. 3000">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Transport (₹)</label>
+              <input class="form-input" id="p-transport" type="number" placeholder="e.g. 500">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Phone / Internet (₹)</label>
+              <input class="form-input" id="p-internet" type="number" placeholder="e.g. 300">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Study / Books (₹)</label>
+              <input class="form-input" id="p-study" type="number" placeholder="e.g. 500">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Entertainment (₹)</label>
+              <input class="form-input" id="p-entertainment" type="number" placeholder="e.g. 1000">
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title">SAVINGS & GOALS</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">How much do you want to save/month (₹)</label>
+              <input class="form-input" id="p-save-goal" type="number" placeholder="e.g. 3000">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Savings goal (what for?)</label>
+              <input class="form-input" id="p-goal-name" type="text" placeholder="e.g. Laptop, Trip, Emergency fund">
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title">INVESTMENT INTEREST</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px">
+            <div class="cat-btn" onclick="toggleInvest(this,'Mutual Funds')">📈 Mutual Funds</div>
+            <div class="cat-btn" onclick="toggleInvest(this,'Stocks')">💹 Stocks</div>
+            <div class="cat-btn" onclick="toggleInvest(this,'Fixed Deposit')">🏦 Fixed Deposit</div>
+            <div class="cat-btn" onclick="toggleInvest(this,'Crypto')">₿ Crypto</div>
+            <div class="cat-btn" onclick="toggleInvest(this,'PPF')">🔒 PPF</div>
+            <div class="cat-btn" onclick="toggleInvest(this,'SIP')">🔄 SIP</div>
+          </div>
+        </div>
+
+        <button class="btn-primary" onclick="saveProfile()">SAVE PROFILE & ANALYZE</button>
+        <div class="success-toast" id="profile-toast">✓ PROFILE SAVED — ASK YOUR AI COACH FOR A PERSONALIZED PLAN</div>
+      </div>
+    </div>
+
     <!-- ── BUDGET CONFIG ── -->
     <div class="panel" id="panel-budget">
       <div class="panel-header">
@@ -822,6 +909,7 @@ let selectedCat = '';
 let geminiKey = '';
 let chatHistory = [];
 let expenses = [];
+let userProfile = {};
 
 const catColors = {
   Food:'#00c8a0', Transport:'#00e5ff', Study:'#7b61ff',
@@ -978,7 +1066,16 @@ function getContext() {
   const total = expenses.reduce((s,e)=>s+e.amount,0);
   const byCat = {};
   expenses.forEach(e => { byCat[e.cat] = (byCat[e.cat]||0) + e.amount; });
-  return `User financial snapshot — Monthly budget: ₹${budget}. Total spent: ₹${total} (${Math.round((total/budget)*100)}% used). Breakdown: ${Object.entries(byCat).map(([c,a])=>`${c} ₹${a}`).join(', ')}. Recent transactions: ${expenses.slice(0,5).map(e=>`${e.desc} ₹${e.amount}`).join(', ')}. User: college student in India.`;
+  const totalIncome = (userProfile.income||0) + (userProfile.otherIncome||0);
+  const surplus = totalIncome - total;
+  return `User financial profile —
+Income: ₹${totalIncome}/month (salary/allowance: ₹${userProfile.income||0}, other: ₹${userProfile.otherIncome||0}).
+Fixed expenses: Rent ₹${userProfile.rent||0}, Food ₹${userProfile.food||0}, Transport ₹${userProfile.transport||0}, Internet ₹${userProfile.internet||0}, Study ₹${userProfile.study||0}, Entertainment ₹${userProfile.entertainment||0}.
+Savings goal: ₹${userProfile.saveGoal||0}/month for "${userProfile.goalName||'General savings'}".
+Investment interests: ${(userProfile.investInterests||[]).join(', ') || 'not specified'}.
+Total spent this month: ₹${total}. Remaining surplus: ₹${surplus}.
+Spending by category: ${Object.entries(byCat).map(([c,a])=>`${c} ₹${a}`).join(', ')}.
+User is a college student in India.`;
 }
 
 // ── CHAT ──
@@ -1057,6 +1154,57 @@ function updateMsg(id, text, isHtml=false) {
 }
 function escHtml(t) {
   return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── PROFILE ──
+let investInterests = [];
+function toggleInvest(el, val) {
+  if (investInterests.includes(val)) {
+    investInterests = investInterests.filter(v => v !== val);
+    el.classList.remove('sel');
+  } else {
+    investInterests.push(val);
+    el.classList.add('sel');
+  }
+}
+
+function saveProfile() {
+  userProfile = {
+    income: parseFloat(document.getElementById('p-income').value) || 0,
+    otherIncome: parseFloat(document.getElementById('p-other-income').value) || 0,
+    rent: parseFloat(document.getElementById('p-rent').value) || 0,
+    food: parseFloat(document.getElementById('p-food').value) || 0,
+    transport: parseFloat(document.getElementById('p-transport').value) || 0,
+    internet: parseFloat(document.getElementById('p-internet').value) || 0,
+    study: parseFloat(document.getElementById('p-study').value) || 0,
+    entertainment: parseFloat(document.getElementById('p-entertainment').value) || 0,
+    saveGoal: parseFloat(document.getElementById('p-save-goal').value) || 0,
+    goalName: document.getElementById('p-goal-name').value || 'General savings',
+    investInterests: investInterests,
+  };
+
+  // auto set budget from income
+  const totalIncome = userProfile.income + userProfile.otherIncome;
+  if (totalIncome > 0) budget = totalIncome;
+
+  // auto log fixed expenses
+  const fixed = [
+    { cat:'Rent', desc:'Monthly Rent/PG', amount: userProfile.rent },
+    { cat:'Food', desc:'Food/Mess', amount: userProfile.food },
+    { cat:'Transport', desc:'Transport', amount: userProfile.transport },
+    { cat:'Other', desc:'Phone/Internet', amount: userProfile.internet },
+    { cat:'Study', desc:'Study/Books', amount: userProfile.study },
+    { cat:'Entertainment', desc:'Entertainment', amount: userProfile.entertainment },
+  ];
+  const today = new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+  fixed.forEach(e => {
+    if (e.amount > 0) expenses.push({...e, date: today});
+  });
+
+  const t = document.getElementById('profile-toast');
+  t.style.display = 'block';
+  setTimeout(() => t.style.display='none', 3000);
+  renderDashboard();
 }
 
 // ── INIT ──
